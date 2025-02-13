@@ -25,14 +25,13 @@ class PrepareData():
   def setup_dnpus(self, ratio: float = 1, normalized_type: str = 'min_max'):
     # Prepare data
     df = self._process.load_and_process_data(DNPUs_DATA, NUMBER_INPUT_ELECTRODES, NUMBER_OUTPUT_ELECTRODES)
-    # df = df.head(self.end_index)
 
     # # Plot Time Series
-    # self._plot.plot_time_series(df.head(15000), NUMBER_INPUT_ELECTRODES, NUMBER_OUTPUT_ELECTRODES, IMG_DIR_PATH)
-    # self._plot.plot_original_time_series(df, IMG_DIR_PATH)
-    # self._plot.plot_decompose_time_series(df, IMG_DIR_PATH)
+    # self._plot.plot_time_series(df.head(15000), NUMBER_INPUT_ELECTRODES, NUMBER_OUTPUT_ELECTRODES, ANALYSIS_DNPUs_DIR)
+    # self._plot.plot_original_time_series(df, ANALYSIS_DNPUs_DIR)
+    # self._plot.plot_decompose_time_series(df, ANALYSIS_DNPUs_DIR)
     # self._plot.plot_stationarity(df.head(10000))
-    # self._plot.plot_acf_and_pacf(df.head(10000), IMG_DIR_PATH)
+    # self._plot.plot_acf_and_pacf(df.head(10000), ANALYSIS_DNPUs_DIR)
 
     # extract {ratio * 100}% dataset (Used only at Few-shot variant)
     print(f'Full Data Shape (Before): {df.shape}')

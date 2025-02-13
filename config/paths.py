@@ -21,6 +21,8 @@ TTM_MODEL_FEWSHOT_DIR = os.path.join(TTM_MODEL_DIR, "fewshots")
 OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")
 PREDICTIONS_DIR = os.path.join(OUTPUTS_DIR, "predictions")
 ANALYSIS_DIR = os.path.join(OUTPUTS_DIR, "analysis")
+ANALYSIS_DNPUs_DIR = os.path.join(ANALYSIS_DIR, "DNPUs")
+ANALYSIS_ETTh1_DIR = os.path.join(ANALYSIS_DIR, "ETTh1")
 
 # Result Dir (inference) each architecture
 PREDICTIONS_TCN_DIR = os.path.join(PREDICTIONS_DIR, "tcn")

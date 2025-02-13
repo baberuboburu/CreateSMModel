@@ -13,7 +13,7 @@ tcn = TCN()
 # fewshot_trainer = ttm.fewshot(new=True, ratio=0.05, model_name='DNPUs20250213')
 
 # TimesFM Few Shot Variant
-# fewshot_trainer = timesfm.fewshot(new=True, ratio=0.05, model_name='DNPUs_20250213')
+# fewshot_trainer = timesfm.fewshot(new=True, ratio=0.001, model_name='DNPUs_20250213')
 
 # TCN
-tcn.train_DNPUs(ratio=0.001, model_name='DNPUs_20250213')
+# tcn.train_DNPUs(ratio=0.001, model_name='DNPUs_20250213')

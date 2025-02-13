@@ -25,7 +25,7 @@ tcn = TCN()
 # timesfm.ettm1(fewshot_trainer, type_='few', ratio=0.05)
 
 # TCN
-tcn.test_DNPUs(ratio=0.05, model_name='DNPUs_20250213')
+# tcn.test_DNPUs(ratio=0.05, model_name='DNPUs_20250213')
 
 # NAMMs
 

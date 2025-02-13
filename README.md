@@ -75,11 +75,14 @@ project_root/
 ### 2. Activate Conda Environment
 `conda activate bspy`
 ### 3. Install Dependencies
-`chmod +x install.sh`
+`chmod +x install.sh`  
 `./install.sh`
 ### 4. Set Config Variant
 You can edit "config/*.py". And choice the best parameters.
-### 5. Train A New Model
+### 5. Prepare IO.dat
+You must prepare IO.dat (Dynamic DNPUs data) for below file path.  
+`./data/IO.dat`
+### 6. Train A New Model
 `python main_train.py`
-### 6. Predict Use A Model
+### 7. Predict Use A Model
 `python main_predict.py`

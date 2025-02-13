@@ -5,7 +5,7 @@ This file is only used by these files.
 '''
 
 # Hyper Parameter (DNPUs)
-TCN_EPOCHS = 3
+TCN_EPOCHS = 50
 TCN_LEARNING_RATE = 1e-4            # Max Learning Rate
 TCN_DROPOUT = 0.5
 TCN_KERNEL_SIZE = 2

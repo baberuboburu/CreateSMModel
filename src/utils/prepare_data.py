@@ -165,12 +165,14 @@ class PrepareData():
     df_train = df.head(int(ratio * len(df)))
     df_test = df.iloc[int(ratio * len(df)) : int(ratio * len(df)) + min(len(df), self.end_index)]
 
-    features = df_train[COLUMN_OBSERVABLE+COLUMN_TARGET].values
+    # features = df_train[COLUMN_OBSERVABLE+COLUMN_TARGET].values
+    features = df_train[COLUMN_OBSERVABLE].values
     targets = df_train[COLUMN_TARGET].values
 
     # Split the data into training (80%) and validation (20%)
     train_features, valid_features, train_targets, valid_targets = train_test_split(features, targets, test_size=0.2, shuffle=False)
-    test_features, test_targets = df_test[COLUMN_OBSERVABLE+COLUMN_TARGET].values, df_test[COLUMN_TARGET].values
+    # test_features, test_targets = df_test[COLUMN_OBSERVABLE+COLUMN_TARGET].values, df_test[COLUMN_TARGET].values
+    test_features, test_targets = df_test[COLUMN_OBSERVABLE].values, df_test[COLUMN_TARGET].values
 
     # Convert data to PyTorch tensors
     train_features_tensor = torch.tensor(train_features, dtype=torch.float32)

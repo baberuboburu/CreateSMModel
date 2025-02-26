@@ -67,6 +67,33 @@ TINYTIMEMIXER_INPUTS_DOCSTRING = r"""
 """
 
 
+# class TinyTimeMixerGatedAttention(nn.Module):
+#     """
+#     Module that applies gated attention to input data.
+
+#     Args:
+#         in_size (`int`): The input size.
+#         out_size (`int`): The output size.
+#     """
+
+#     def __init__(self, in_size: int, out_size: int):
+#         super().__init__()
+#         self.attn_layer = nn.Linear(in_size, out_size)
+#         self.attn_softmax = nn.Softmax(dim=-1)
+
+#     def forward(self, inputs, decrease_dim: bool = False):
+#         attn_weight = self.attn_softmax(self.attn_layer(inputs))
+#         inputs = inputs * attn_weight
+
+#         # Added by Aoto (Changed the define of "outputs")
+#         if decrease_dim:
+#             outputs = self.attn_layer(inputs)
+#         else:
+#             outputs = inputs
+
+#         return outputs
+
+
 class TinyTimeMixerGatedAttention(nn.Module):
     """
     Module that applies gated attention to input data.
@@ -81,10 +108,11 @@ class TinyTimeMixerGatedAttention(nn.Module):
         self.attn_layer = nn.Linear(in_size, out_size)
         self.attn_softmax = nn.Softmax(dim=-1)
 
-    def forward(self, inputs):
+    def forward(self, inputs, decrease_dim: bool = False):
         attn_weight = self.attn_softmax(self.attn_layer(inputs))
         inputs = inputs * attn_weight
         return inputs
+
 
 
 class TinyTimeMixerBatchNorm(nn.Module):
@@ -214,6 +242,8 @@ class TinyTimeMixerMLP(nn.Module):
         Returns:
             `torch.Tensor` of the same shape as `inputs`
         """
+        # print(inputs.shape)          # torch.Size([64, 1, 48, 8])
+        # print(self.fc1.in_features)  # Expect to torch.Size([64, 1, 48, 32])
         inputs = self.dropout1(nn.functional.gelu(self.fc1(inputs)))
         inputs = self.fc2(inputs)
         inputs = self.dropout2(inputs)
@@ -228,23 +258,37 @@ class TinyTimeMixerChannelFeatureMixerBlock(nn.Module):
             Configuration.
     """
 
-    def __init__(self, config: TinyTimeMixerConfig):
+    def __init__(self, config: TinyTimeMixerConfig, type_: str = None):
         super().__init__()
 
         self.norm = TinyTimeMixerNormLayer(config)
         self.gated_attn = config.gated_attn
-        self.mlp = TinyTimeMixerMLP(
-            in_features=config.num_input_channels,
-            out_features=config.num_input_channels,
-            config=config,
-        )
-
-        if config.gated_attn:
-            self.gating_block = TinyTimeMixerGatedAttention(
-                in_size=config.num_input_channels, out_size=config.num_input_channels
+        # Changed by Aoto (Added if/else sentence.)
+        if type_ == 'encoder':
+            self.mlp = TinyTimeMixerMLP(
+                in_features=config.num_input_channels,
+                out_features=config.num_input_channels,
+                config=config,
             )
+            self.gating_block = TinyTimeMixerGatedAttention(
+                    in_size=config.num_input_channels, out_size=config.num_input_channels
+                )
+        elif type_ == 'decoder':
+            self.mlp = TinyTimeMixerMLP(
+                in_features=config.num_input_channels,
+                out_features=config.num_input_channels,
+                config=config,
+            )
+            if config.gated_attn:
+                # self.gating_block = TinyTimeMixerGatedAttention(
+                #     in_size=config.num_input_channels, out_size=config.num_output_channels
+                # )
+                self.gating_block = TinyTimeMixerGatedAttention(
+                    in_size=config.num_input_channels, out_size=config.num_input_channels
+                )
 
-    def forward(self, inputs: torch.Tensor):
+
+    def forward(self, inputs: torch.Tensor, decrease_dim: bool = False):
         """
         Args:
             inputs (`torch.Tensor` of shape `((batch_size, num_channels, num_patches, d_model))`):
@@ -252,15 +296,22 @@ class TinyTimeMixerChannelFeatureMixerBlock(nn.Module):
         Returns:
             `torch.Tensor` of the same shape as `inputs`
         """
-        residual = inputs
         inputs = self.norm(inputs)
 
+        # Added by Aoto (Changed the define of "residual")
+        if decrease_dim:
+            residual = inputs.permute(0, 3, 2, 1).mean(dim=-1, keepdim=True)
+            residual = residual.permute(0, 3, 2, 1)
+        else:
+            residual = inputs
+        
         inputs = inputs.permute(0, 3, 2, 1)
 
-        if self.gated_attn:
-            inputs = self.gating_block(inputs)
-
         inputs = self.mlp(inputs)
+        
+        if self.gated_attn:
+            inputs = self.gating_block(inputs, decrease_dim)
+            
 
         inputs = inputs.permute(0, 3, 2, 1)
 
@@ -550,20 +601,23 @@ class TinyTimeMixerLayer(nn.Module):
 
     """
 
-    def __init__(self, config: TinyTimeMixerConfig):
+    def __init__(self, config: TinyTimeMixerConfig, type_: str = None):
         super().__init__()
 
         if config.num_patches > 1:
             self.patch_mixer = PatchMixerBlock(config=config)
 
         self.feature_mixer = FeatureMixerBlock(config=config)
-
-        self.mode = config.mode
         self.num_patches = config.num_patches
-        if config.mode == "mix_channel":
-            self.channel_feature_mixer = TinyTimeMixerChannelFeatureMixerBlock(config=config)
+        self.mode = config.mode
 
-    def forward(self, hidden: torch.Tensor):
+        # Add by Aoto
+        self.type_ = type_
+
+        if config.mode == "mix_channel":
+            self.channel_feature_mixer = TinyTimeMixerChannelFeatureMixerBlock(config=config, type_=type_)
+
+    def forward(self, hidden: torch.Tensor, decrease_dim: bool = False):
         """
         Args:
             hidden (`torch.Tensor` of shape `(batch_size, num_patches, d_model)`):
@@ -572,12 +626,14 @@ class TinyTimeMixerLayer(nn.Module):
         Returns:
             `torch.Tensor`: Transformed tensor.
         """
-        if self.mode == "mix_channel":
-            hidden = self.channel_feature_mixer(hidden)
-
         if self.num_patches > 1:
             hidden = self.patch_mixer(hidden)
-        hidden = self.feature_mixer(hidden)  # hidden: (batch_size x num_patches x d_model)
+
+        hidden = self.feature_mixer(hidden)     # hidden: (batch_size x nvars × num_patches x d_model)
+
+        if self.mode == "mix_channel":
+            hidden = self.channel_feature_mixer(hidden, decrease_dim)
+
         return hidden
 
 
@@ -591,7 +647,7 @@ class TinyTimeMixerAdaptivePatchingBlock(nn.Module):
 
     """
 
-    def __init__(self, config: TinyTimeMixerConfig, adapt_patch_level: int):
+    def __init__(self, config: TinyTimeMixerConfig, adapt_patch_level: int, type_: str = None):
         super().__init__()
         temp_config = copy.deepcopy(config)
         self.adapt_patch_level = adapt_patch_level
@@ -611,9 +667,9 @@ class TinyTimeMixerAdaptivePatchingBlock(nn.Module):
         temp_config.num_patches = temp_config.num_patches * self.adaptive_patch_factor
         temp_config.d_model = temp_config.d_model // self.adaptive_patch_factor
 
-        self.mixer_layers = nn.ModuleList([TinyTimeMixerLayer(temp_config) for i in range(temp_config.num_layers)])
+        self.mixer_layers = nn.ModuleList([TinyTimeMixerLayer(temp_config, type_=type_) for i in range(temp_config.num_layers)])
 
-    def forward(self, hidden: torch.Tensor):
+    def forward(self, hidden: torch.Tensor, decrease_dim: bool = False):
         """
         Args:
             hidden (`torch.Tensor` of shape `(batch_size x nvars x num_patch x d_model)`):
@@ -635,8 +691,13 @@ class TinyTimeMixerAdaptivePatchingBlock(nn.Module):
         )
         all_hidden_states.append(hidden)
 
-        for mod in self.mixer_layers:
-            hidden = mod(hidden)
+        for i, mod in enumerate(self.mixer_layers):
+            if i+1 == len(self.mixer_layers) and decrease_dim == True:
+                decrease_dim = True
+            else:
+                decrease_dim = False
+            # print(f'{i+1} / {len(self.mixer_layers)}, Bool: {decrease_dim}')
+            hidden = mod(hidden, decrease_dim)
             all_hidden_states.append(hidden)
 
         hidden = torch.reshape(
@@ -661,23 +722,27 @@ class TinyTimeMixerBlock(nn.Module):
             Configuration.
     """
 
-    def __init__(self, config: TinyTimeMixerConfig):
+    def __init__(self, config: TinyTimeMixerConfig, type_: str = None):
         super().__init__()
 
         num_layers = config.num_layers
 
         self.adaptive_patching_levels = config.adaptive_patching_levels
 
+        # Encoder
         if self.adaptive_patching_levels > 0:
             self.mixers = nn.ModuleList(
                 [
-                    TinyTimeMixerAdaptivePatchingBlock(config=config, adapt_patch_level=i)
+                    TinyTimeMixerAdaptivePatchingBlock(config=config, adapt_patch_level=i, type_=type_)
                     for i in reversed(range(config.adaptive_patching_levels))
                 ]
             )
-
+        
+        # Decoder
         else:
-            self.mixers = nn.ModuleList([TinyTimeMixerLayer(config=config) for _ in range(num_layers)])
+            self.mixers = nn.ModuleList([TinyTimeMixerLayer(config=config, type_=type_) for _ in range(num_layers)])
+
+        self.type_ = type_
 
     def forward(self, hidden_state, output_hidden_states: bool = False):
         """
@@ -694,15 +759,26 @@ class TinyTimeMixerBlock(nn.Module):
 
         embedding = hidden_state
 
-        for mod in self.mixers:
+        for i, mod in enumerate(self.mixers):
+            # Encoder
             if self.adaptive_patching_levels > 0:
-                embedding, hidden_states = mod(embedding)
+                embedding, hidden_states = mod(embedding, decrease_dim=False)
                 all_hidden_states.extend(hidden_states)
+            
+            # Decoder
             else:
-                embedding = mod(embedding)
+                # Added by Aoto
+                if i+1 == len(self.mixers):
+                    decrease_dim = True
+                else:
+                    decrease_dim = False
+                # print(f'{i+1} / {self.adaptive_patching_levels}, Bool: {decrease_dim}')
+                # Added by Aoto
+
+                embedding = mod(embedding, decrease_dim=decrease_dim)
                 if output_hidden_states:
                     all_hidden_states.append(embedding)
-
+       
         if output_hidden_states:
             return embedding, all_hidden_states
         else:
@@ -738,7 +814,7 @@ class TinyTimeMixerDecoder(nn.Module):
         decoder_config.adaptive_patching_levels = config.decoder_adaptive_patching_levels
         decoder_config.mode = config.decoder_mode
 
-        self.decoder_block = TinyTimeMixerBlock(decoder_config)
+        self.decoder_block = TinyTimeMixerBlock(config=decoder_config, type_='decoder')
 
         self.resolution_prefix_tuning = config.resolution_prefix_tuning
 
@@ -791,9 +867,9 @@ class TinyTimeMixerDecoder(nn.Module):
             hidden_state=decoder_input, output_hidden_states=output_hidden_states
         )  # bs x nvars x n_patches x d_model
 
-        if output_hidden_states:
+        if output_hidden_states:   # Defult, output_hidden_states = False, i.e. decoder_hidden_states = None
             decoder_hidden_states.extend(hidden_states)
-
+        
         return decoder_output, decoder_hidden_states
 
 
@@ -824,6 +900,7 @@ class TinyTimeMixerForPredictionHead(nn.Module):
 
         self.flatten = nn.Flatten(start_dim=-2)
 
+
     def forward(self, hidden_features, past_values, future_values=None):
         """
 
@@ -846,13 +923,14 @@ class TinyTimeMixerForPredictionHead(nn.Module):
 
         """
 
-        hidden_features = self.flatten(hidden_features)  # [batch_size x n_vars x num_patch * d_model]
-        hidden_features = self.dropout_layer(hidden_features)  # [batch_size x n_vars x num_patch * d_model]
-        forecast = self.base_forecast_block(hidden_features)  # [batch_size x n_vars x prediction_length]
+        hidden_features = self.flatten(hidden_features)         # [batch_size x c' x num_patch * d_model]
+        hidden_features = self.dropout_layer(hidden_features)   # [batch_size x c' x num_patch * d_model]
+        forecast = self.base_forecast_block(hidden_features)    # [batch_size x c' x prediction_length]
         if isinstance(forecast, tuple):
             forecast = tuple(z.transpose(-1, -2) for z in forecast)
         else:
-            forecast = forecast.transpose(-1, -2)  # [batch_size x prediction_length x n_vars]
+            forecast = forecast.transpose(-1, -2)               # [batch_size x prediction_length x c']
+            # forecast = self.predict_target_block(forecast)    # [batch_size x prediction_length x prediction_n_vars]
 
         if self.prediction_channel_indices is not None:
             if isinstance(forecast, tuple):
@@ -860,7 +938,7 @@ class TinyTimeMixerForPredictionHead(nn.Module):
             else:
                 forecast = forecast[
                     ..., self.prediction_channel_indices
-                ]  # [batch_size x prediction_length x prediction_n_vars]
+                ]                                               # [batch_size x prediction_length x prediction_n_vars]
 
         if self.prediction_filter_length is not None:
             if isinstance(forecast, tuple):
@@ -868,7 +946,7 @@ class TinyTimeMixerForPredictionHead(nn.Module):
             else:
                 forecast = forecast[
                     :, : self.prediction_filter_length, :
-                ]  # [batch_size x prediction_filter_length x prediction_n_vars]
+                ]                                               # [batch_size x prediction_filter_length x prediction_n_vars]
 
         if (
             self.prediction_filter_length is not None
@@ -877,10 +955,10 @@ class TinyTimeMixerForPredictionHead(nn.Module):
         ):
             future_values = future_values[
                 :, : self.prediction_filter_length, :
-            ]  # [batch_size x prediction_filter_length x n_vars]
-
-        return forecast
-
+            ]                                                   # [batch_size x prediction_filter_length x n_vars]
+    
+        return forecast                                         # [batch_size x prediction_length x prediction_n_vars]
+    
 
 class TinyTimeMixerPreTrainedModel(PreTrainedModel):
     # Weight initialization
@@ -931,6 +1009,7 @@ class TinyTimeMixerPatchify(nn.Module):
         self.num_patches = (max(self.sequence_length, self.patch_length) - self.patch_length) // self.patch_stride + 1
         new_sequence_length = self.patch_length + self.patch_stride * (self.num_patches - 1)
         self.sequence_start = self.sequence_length - new_sequence_length
+
 
     def forward(self, past_values: torch.Tensor):
         """
@@ -1109,7 +1188,7 @@ class TinyTimeMixerEncoder(TinyTimeMixerPreTrainedModel):
             self.positional_encoder = TinyTimeMixerPositionalEncoding(config=config)
         else:
             self.positional_encoder = None
-        self.mlp_mixer_encoder = TinyTimeMixerBlock(config=config)
+        self.mlp_mixer_encoder = TinyTimeMixerBlock(config=config, type_='encoder')
 
         if config.resolution_prefix_tuning:
             mid_dim = (config.patch_length + config.d_model) // 2
@@ -1408,6 +1487,7 @@ class TinyTimeMixerForPrediction(TinyTimeMixerPreTrainedModel):
         self.prediction_channel_indices = config.prediction_channel_indices
 
         self.num_input_channels = config.num_input_channels
+        self.num_output_channels = config.num_output_channels  # Added by Aoto
 
         self.prediction_filter_length = config.prediction_filter_length
 
@@ -1470,6 +1550,8 @@ class TinyTimeMixerForPrediction(TinyTimeMixerPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
         # past_values: tensor [batch_size x context_length x num_input_channels]
+        # past_values[:, :, 0] = 0  # Target_Columns to 0 → It didn't work well.
+
         model_output = self.backbone(
             past_values,
             observed_mask=observed_mask,
@@ -1493,12 +1575,11 @@ class TinyTimeMixerForPrediction(TinyTimeMixerPreTrainedModel):
 
             if decoder_hidden_states:
                 hidden_states.extend(decoder_hidden_states)
-
         else:
             decoder_output = decoder_input
 
-        # tensor [batch_size x prediction_length x num_input_channels]
-
+        # tensor [batch_size x prediction_length x num_input_channels]  ← [batch_size x prediction_length x num_output_channels] にしたい
+        
         y_hat = self.head(decoder_output, past_values=past_values, future_values=future_values)
 
         if (
@@ -1525,7 +1606,7 @@ class TinyTimeMixerForPrediction(TinyTimeMixerPreTrainedModel):
 
         loss_val = None
 
-        y_hat = y_hat * scale + loc
+        y_hat = y_hat * scale + loc   # [B, FL, num_output_vars]
 
         if future_values is not None and return_loss is True and loss is not None:
             loss_val = loss(y_hat, future_values)

@@ -426,7 +426,7 @@ class TimeSeriesPreprocessor(FeatureExtractionMixin):
                 if cols_to_scale:
                     self.scaler_dict[name] = scaler_class()
                     self.scaler_dict[name].fit(g[cols_to_scale])
-
+                
                 self.target_scaler_dict[name] = scaler_class()
                 self.target_scaler_dict[name].fit(g[self.target_columns])
 

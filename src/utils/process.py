@@ -1,7 +1,8 @@
+from config.config import *
+from tsfm.tsfm_public.toolkit.time_series_preprocessor import TimeSeriesPreprocessor
 import numpy as np
 import pandas as pd
 import torch
-from tsfm.tsfm_public.toolkit.time_series_preprocessor import TimeSeriesPreprocessor
 
 
 class Process():
@@ -36,20 +37,20 @@ class Process():
   def load_and_process_data(self, data_path: str, activation_electrode_no: int, readout_electrode_no: int):
     # Load the raw data
     inputs, outputs = self.get_sampling_data(data_path, activation_electrode_no, readout_electrode_no)
-    
+
     # Convert to pandas DataFrame
-    df_inputs = pd.DataFrame(inputs, columns=[f'input_{i}' for i in range(activation_electrode_no)])
-    df_outputs = pd.DataFrame(outputs, columns=[f'output_{i}' for i in range(readout_electrode_no)])
+    df_inputs = pd.DataFrame(inputs, columns=COLUMN_OBSERVABLE)
+    df_outputs = pd.DataFrame(outputs, columns=COLUMN_TARGET)
     
     # Combine inputs and outputs into one DataFrame
     df = pd.concat([df_inputs, df_outputs], axis=1)
     
     # Add additional columns required by TimeSeriesDataSet
-    df['time_idx'] = np.arange(len(df))  # Assuming the data is sequential
-    df['group_id'] = 0                   # Assuming a single time series for simplicity
+    df[COLUMN_TIMESTAMP] = np.arange(len(df))   # Assuming the data is sequential
+    df[COLUMN_GROUPID] = 0                      # Assuming a single time series for simplicity
     
     return df
-
+  
 
   def prepare_learning_dataset(
     self, 

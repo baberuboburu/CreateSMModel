@@ -400,6 +400,18 @@ class ForecastDFDataset(BaseConcatDFDataset):
             self.static_categorical_columns = static_categorical_columns
             self.autoregressive_modeling = autoregressive_modeling
 
+            # Added by Aoto
+            # x_cols = join_list_without_repeat(
+            #     observable_columns,
+            #     control_columns,
+            #     conditional_columns,
+            # )
+            # y_cols = join_list_without_repeat(
+            #     target_columns,
+            #     control_columns,
+            #     conditional_columns,
+            # )
+            # Order is important (target → observable → control → conditional)
             x_cols = join_list_without_repeat(
                 target_columns,
                 observable_columns,
@@ -433,6 +445,7 @@ class ForecastDFDataset(BaseConcatDFDataset):
             )
 
         def __getitem__(self, time_id):
+  
             # seq_x: batch_size x seq_len x num_x_cols
             seq_x = self.X[time_id : time_id + self.context_length].values
             if not self.autoregressive_modeling:

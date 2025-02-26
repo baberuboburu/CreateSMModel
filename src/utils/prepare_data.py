@@ -8,9 +8,6 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 
-'''
-configのパラメータがアーキテクチャごとで重複するため、修正する。
-'''
 
 class PrepareData():
   def __init__(self):
@@ -24,10 +21,10 @@ class PrepareData():
 
   def setup_dnpus(self, ratio: float = 1, normalized_type: str = 'min_max'):
     # Prepare data
-    df = self._process.load_and_process_data(DNPUs_DATA, NUMBER_INPUT_ELECTRODES, NUMBER_OUTPUT_ELECTRODES)
+    df = self._process.load_and_process_data(DNPUs_DATA, len(COLUMN_OBSERVABLE), len(COLUMN_TARGET))
 
     # # Plot Time Series
-    # self._plot.plot_time_series(df.head(15000), NUMBER_INPUT_ELECTRODES, NUMBER_OUTPUT_ELECTRODES, ANALYSIS_DNPUs_DIR)
+    # self._plot.plot_time_series(df.head(15000), len(COLUMN_OBSERVABLE), len(COLUMN_TARGET), ANALYSIS_DNPUs_DIR)
     # self._plot.plot_original_time_series(df, ANALYSIS_DNPUs_DIR)
     # self._plot.plot_decompose_time_series(df, ANALYSIS_DNPUs_DIR)
     # self._plot.plot_stationarity(df.head(10000))
@@ -39,28 +36,25 @@ class PrepareData():
     print(f'Full Data Shape (After): {df.shape}')
 
     # normalization
-    feature_columns = [f'input_{i}' for i in range(7)]
-    target_column = ['output_0']
-    
     if normalized_type == 'min_max':
-      df_normalized = self._normalize.min_max_normalize(df, feature_columns, target_column)
+      df_normalized = self._normalize.min_max_normalize(df, COLUMN_OBSERVABLE, COLUMN_TARGET)
     elif normalized_type == 'instance':
-      df_normalized = self._normalize.instance_normalize(df, feature_columns, target_column)
+      df_normalized = self._normalize.instance_normalize(df, COLUMN_OBSERVABLE, COLUMN_TARGET)
     elif normalized_type == 'batch':
-      df_normalized = self._normalize.batch_normalize(df, feature_columns, target_column)
+      df_normalized = self._normalize.batch_normalize(df, COLUMN_OBSERVABLE, COLUMN_TARGET)
 
     return df_normalized
-  
+
 
   def dnpus_for_ttm(self, df_normalized: pd.DataFrame):
     # Split the dataset
     full_dataset, train_dataset, valid_dataset, test_dataset = self._process.prepare_learning_dataset(
       df_normalized, 
-      RATE_TRAINIG_DATASET, RATE_TEST_DATASET, 
+      RATE_TRAINIG_DATASET, RATE_TEST_DATASET,
       TTM_SL, TTM_FL,
-      timestamp_column=COLUMN_TIMESTAMP, id_columns=COLUMN_ID, target_columns=COLUMN_TARGET, observable_colums=COLUMN_OBSERVABLE, control_columns=COLUMN_CONTROL
-      )
-    # dynamic_plot.plot_ground_truth(df_normalized, start_idx=55233, plot_length=6968)
+      timestamp_column=COLUMN_TIMESTAMP, id_columns=COLUMN_ID, target_columns=COLUMN_TARGET, observable_columns=COLUMN_OBSERVABLE, control_columns=COLUMN_CONTROL
+    )
+
     print(f"Data length: full = {len(full_dataset)}")
     print(f"Data lengths: train = {len(train_dataset)}, val = {len(valid_dataset)}, test = {len(test_dataset)}")
 
@@ -165,14 +159,71 @@ class PrepareData():
     df_train = df.head(int(ratio * len(df)))
     df_test = df.iloc[int(ratio * len(df)) : int(ratio * len(df)) + min(len(df), self.end_index)]
 
-    # features = df_train[COLUMN_OBSERVABLE+COLUMN_TARGET].values
-    features = df_train[COLUMN_OBSERVABLE].values
+    features = df_train[COLUMN_INPUT].values
     targets = df_train[COLUMN_TARGET].values
 
     # Split the data into training (80%) and validation (20%)
     train_features, valid_features, train_targets, valid_targets = train_test_split(features, targets, test_size=0.2, shuffle=False)
-    # test_features, test_targets = df_test[COLUMN_OBSERVABLE+COLUMN_TARGET].values, df_test[COLUMN_TARGET].values
-    test_features, test_targets = df_test[COLUMN_OBSERVABLE].values, df_test[COLUMN_TARGET].values
+    test_features, test_targets = df_test[COLUMN_INPUT].values, df_test[COLUMN_TARGET].values
+
+    # Convert data to PyTorch tensors
+    train_features_tensor = torch.tensor(train_features, dtype=torch.float32)
+    train_targets_tensor = torch.tensor(train_targets, dtype=torch.float32)
+    valid_features_tensor = torch.tensor(valid_features, dtype=torch.float32)
+    valid_targets_tensor = torch.tensor(valid_targets, dtype=torch.float32)
+    test_features_tensor = torch.tensor(test_features, dtype=torch.float32)
+    test_targets_tensor = torch.tensor(test_targets, dtype=torch.float32)
+
+    # Create input-output pairs for sequence prediction
+    def create_sequence_data(features, targets):
+      inputs, outputs = [], []
+      for i in range(sl, len(features) - fl):
+        inputs.append(features[i-sl : i])
+        # outputs.append(targets[i :i+fl])
+        outputs.append(targets[i-1 :i])
+      return torch.stack(inputs), torch.stack(outputs)
+
+    # Prepare the training, validation, and testing sequences
+    train_inputs, train_outputs = create_sequence_data(train_features_tensor, train_targets_tensor)
+    valid_inputs, valid_outputs = create_sequence_data(valid_features_tensor, valid_targets_tensor)
+    test_inputs, test_outputs = create_sequence_data(test_features_tensor, test_targets_tensor)
+    print(train_targets.shape)
+    print(valid_targets.shape)
+
+    # Create DataLoader instances for batch processing
+    train_dataset = torch.utils.data.TensorDataset(train_inputs, train_outputs)
+    valid_dataset = torch.utils.data.TensorDataset(valid_inputs, valid_outputs)
+    test_dataset = torch.utils.data.TensorDataset(test_inputs, test_outputs)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, valid_loader, test_loader
+
+
+  def dnpus_for_static(self, df: pd.DataFrame, sl: int, fl: int, batch_size: int, ratio: float):
+    """
+    Prepare the training, validation, and testing data loaders for DNPU task.
+    
+    Args:
+      df (pd.DataFrame): The DataFrame containing the dataset with columns input_0 to input_6 and output_0
+      fl (int): The number of steps to predict into the future
+      batch_size (int): The batch size for training and testing data
+    
+    Returns:
+      train_loader, valid_loader, test_loader: DataLoaders for training, validation, and testing data
+    """
+    # Extract features and targets (assuming the DataFrame is already normalized)
+    df_train = df.head(int(ratio * len(df)))
+    df_test = df.iloc[int(ratio * len(df)) : int(ratio * len(df)) + min(len(df), self.end_index)]
+
+    features = df_train[COLUMN_INPUT].values
+    targets = df_train[COLUMN_TARGET].values
+
+    # Split the data into training (80%) and validation (20%)
+    train_features, valid_features, train_targets, valid_targets = train_test_split(features, targets, test_size=0.2, shuffle=False)
+    test_features, test_targets = df_test[COLUMN_INPUT].values, df_test[COLUMN_TARGET].values
 
     # Convert data to PyTorch tensors
     train_features_tensor = torch.tensor(train_features, dtype=torch.float32)
@@ -202,8 +253,8 @@ class PrepareData():
     valid_dataset = torch.utils.data.TensorDataset(valid_inputs, valid_outputs)
     test_dataset = torch.utils.data.TensorDataset(test_inputs, test_outputs)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, valid_loader, test_loader

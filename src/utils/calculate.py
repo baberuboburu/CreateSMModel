@@ -41,6 +41,8 @@ class Calculate():
         batch = dataset[i]
         inputs = batch["past_values"].unsqueeze(0).to(device)
         targets = batch["future_values"].unsqueeze(0).to(device)
+        # print(inputs.shape)
+        # print(targets.shape)
         
         # Get the model's predictions
         output = trainer.model(inputs)
@@ -48,6 +50,7 @@ class Calculate():
         
         all_targets.append(amplification * targets.squeeze(0))
         all_predictions.append(amplification * predictions.squeeze(0))
+        # break
   
     # all_targets = torch.cat(all_targets, dim=0).cpu().numpy()
     # all_predictions = torch.cat(all_predictions, dim=0).cpu().numpy()

@@ -1,4 +1,4 @@
-# Create Surrogate Model Using 
+# Create Surrogate Model Using Dynamic DNPUs Data
 
 ## Overview
 This project focuses on building deep learning models using multiple architectures for time-series prediction tasks. It involves data preparation, training, evaluation, and visualization of results. The project follows a structured directory organization to maintain clarity and scalability.
@@ -11,7 +11,7 @@ project_root/
 │
 ├── config/              # Configuration files
 │   ├── config.py        # This file has all config vaiate, and then only this file is imported
-│   ├── paths.py         # Centralized file path management
+│   ├── paths.py         # Centralized file path management, You can select columns for input
 │   ├── common.py        # Common settings
 │   ├── tcn.py           # TCN-specific settings
 │   ├── timesfm.py       # TimesFM-specific settings
@@ -71,7 +71,7 @@ project_root/
 
 ## How To Use
 ### 1. Clone this repository
-`git clone `
+`git clone git@github.com:baberuboburu/CreateSMModel.git`
 ### 2. Activate Conda Environment
 `conda activate bspy`
 ### 3. Install Dependencies

@@ -388,6 +388,8 @@ class TimeSeriesForecastingPipeline(TimeSeriesPipeline):
         """
         out = {}
 
+        print('postprocess関数が実行')
+
         model_output_key = "prediction_outputs"  #  if "prediction_outputs" in input.keys() else "prediction_logits"
 
         # name the predictions of target columns

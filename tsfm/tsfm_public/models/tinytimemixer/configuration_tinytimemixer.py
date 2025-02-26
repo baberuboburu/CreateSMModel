@@ -136,15 +136,16 @@ class TinyTimeMixerConfig(PretrainedConfig):
         context_length: int = 64,
         patch_length: int = 8,
         num_input_channels: int = 1,
+        num_output_channels: int = 1,  # Added by Aoto
         prediction_length: int = 16,
         patch_stride: int = 8,
         prediction_channel_indices: Optional[list] = None,
         # General model configuration
-        d_model: int = 16,
+        d_model: int = 16,  # 192
         expansion_factor: int = 2,
         num_layers: int = 3,
         dropout: float = 0.2,
-        mode: str = "common_channel",
+        mode: str = "mix_channel",  # mix_channel / common_channel
         gated_attn: bool = True,
         norm_mlp: str = "LayerNorm",
         self_attn: bool = False,
@@ -163,7 +164,7 @@ class TinyTimeMixerConfig(PretrainedConfig):
         head_dropout: float = 0.2,
         # decoder parameters
         decoder_num_layers: int = 8,
-        decoder_d_model: int = 8,
+        decoder_d_model: int = 8,  # 128
         decoder_adaptive_patching_levels: int = 0,
         decoder_raw_residual: bool = False,
         decoder_mode: str = "common_channel",
@@ -173,6 +174,7 @@ class TinyTimeMixerConfig(PretrainedConfig):
         **kwargs,
     ):
         self.num_input_channels = num_input_channels
+        self.num_output_channels = num_output_channels  # Added by Aoto
         self.context_length = context_length
         self.patch_length = patch_length
         self.expansion_factor = expansion_factor
@@ -212,6 +214,7 @@ class TinyTimeMixerConfig(PretrainedConfig):
         self.prediction_filter_length = prediction_filter_length
 
         super().__init__(**kwargs)
+
 
     def check_and_init_preprocessing(self):
         self.init_processing = True

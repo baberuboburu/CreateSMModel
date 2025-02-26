@@ -66,7 +66,7 @@ class TCN(BaseArchitecture):
   
 
   def train(self, train_loader, valid_loader, num_inputs, sl, batch_size, epochs, tcn_model_dir, model_name):
-    early_stopping = EarlyStopping(patience=5, min_delta=1e-6)
+    early_stopping = EarlyStopping(patience=5, min_delta=TCN_MIN_DELTA)
     losses = []
 
     for epoch in tqdm(range(epochs)):

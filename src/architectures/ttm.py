@@ -158,11 +158,41 @@ class TTM(BaseArchitecture):
     device = torch.device(BACKEND)
     print(f"Using device: {device}")
 
-    fewshot_model = TinyTimeMixerForPrediction.from_pretrained("ibm-granite/granite-timeseries-ttm-r2", revision=ttm_version, loss=loss, prediction_filter_length=forecast_length, head_dropout=head_dropout)
+    fewshot_model = TinyTimeMixerForPrediction.from_pretrained(
+      "ibm-granite/granite-timeseries-ttm-r2", 
+      revision=ttm_version, loss=loss, 
+      prediction_filter_length=forecast_length, 
+      num_input_channels = len(COLUMN_INPUT),
+      num_output_channels = len(COLUMN_TARGET),
+      head_dropout=head_dropout,
+      context_length=TTM_SL,
+      patch_length=TTM_PATCH_SIZE,
+      patch_stride=TTM_PATCH_STRIDE,
+      ignore_mismatched_sizes=True  # Ignore the param shape of pretrained model.
+    )
+
     print(
       "Number of params before freezing backbone",
       count_parameters(fewshot_model),
     )
+
+    # # fewshot_model のパラメータをモジュールごとに整理して表示
+    # from collections import defaultdict
+
+    # # モジュールごとのパラメータ数を集計
+    # param_counts = defaultdict(int)
+    # total_params = 0
+
+    # for name, param in fewshot_model.named_parameters():
+    #   module_name = name.split('.')[0]  # 最上位のモジュール名を取得
+    #   param_counts[module_name] += param.numel()
+    #   total_params += param.numel()
+
+    # # 各モジュールごとのパラメータ数を表示
+    # print("Parameter distribution in fewshot_model:")
+    # for module, count in param_counts.items():
+    #   print(f"{module}: {count:,} parameters")
+    # print(f"Total parameters: {total_params:,}")
 
     # Freeze the backbone of the model
     for param in fewshot_model.backbone.parameters():
@@ -183,7 +213,7 @@ class TTM(BaseArchitecture):
       learning_rate=learning_rate,
       num_train_epochs=num_epochs,
       do_eval=True,                                             # True: do evaluation at learning using eval_dataset, False: no evaluation
-      evaluation_strategy="epoch",                              # 'no': no evaluation, 'epoch': evaluation after each epochs, 'steps': evaluation at each specified spte
+      eval_strategy="epoch",                                    # 'no': no evaluation, 'epoch': evaluation after each epochs, 'steps': evaluation at each specified spte
       per_device_train_batch_size=per_device_eval_batch_size,   # Batch Size at Training
       per_device_eval_batch_size=per_device_eval_batch_size,    # Batch Size at Testing
       dataloader_num_workers=0,                                 # The number of threads downloading data
@@ -201,7 +231,7 @@ class TTM(BaseArchitecture):
 
     # Create the early stopping callback
     early_stopping_callback = EarlyStoppingCallback(
-      early_stopping_patience=5,  # Number of epochs with no improvement after which to stop
+      early_stopping_patience=5,     # Number of epochs with no improvement after which to stop
       early_stopping_threshold=0.0,  # Minimum improvement required to consider as improvement
     )
     tracking_callback = TrackingCallback()

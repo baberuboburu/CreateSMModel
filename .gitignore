@@ -1,5 +1,7 @@
 data/IO.dat
+data/IO.csv
 models/tcn/**
 models/timesfm/**
 models/ttm/**
+models/static/**
 **/__pycache__/

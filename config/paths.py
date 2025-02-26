@@ -16,6 +16,8 @@ TIMESFM_MODEL_DIR = os.path.join(MODELS_DIR, "timesfm")
 TTM_MODEL_DIR = os.path.join(MODELS_DIR, "ttm")
 TTM_MODEL_ZEROSHOT_DIR = os.path.join(TTM_MODEL_DIR, "zeroshots")
 TTM_MODEL_FEWSHOT_DIR = os.path.join(TTM_MODEL_DIR, "fewshots")
+STATIC_MODEL_DIR = os.path.join(MODELS_DIR, "static")
+LIGHTTS_MODEL_DIR = os.path.join(MODELS_DIR, "lightts")
 
 # Result Dir (inference, analysis)
 OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")
@@ -30,10 +32,9 @@ PREDICTIONS_TIMESFM_DIR = os.path.join(PREDICTIONS_DIR, "timesfm")
 PREDICTIONS_TIMESFM_ZEROSHOT_DIR = os.path.join(PREDICTIONS_TIMESFM_DIR, "zeroshots")
 PREDICTIONS_TIMESFM_FEWSHOT_DIR = os.path.join(PREDICTIONS_TIMESFM_DIR, "fewshots")
 PREDICTIONS_TTM_DIR = os.path.join(PREDICTIONS_DIR, "ttm")
+PREDICTIONS_STATIC_DIR = os.path.join(PREDICTIONS_DIR, "static")
+PREDICTIONS_LIGHTTS_DIR = os.path.join(PREDICTIONS_DIR, "lightts")
 
 # Result Dir (analysis) each architecture
 ANALYSIS_ETTH1_DIR = os.path.join(ANALYSIS_DIR, "ETTh1")
 ANALYSIS_IO_DIR = os.path.join(ANALYSIS_DIR, "IO")
-
-# hyperparameter file
-HYPERPARAMS_FILE = os.path.join(PROJECT_ROOT, "config", "hyperparams.py")

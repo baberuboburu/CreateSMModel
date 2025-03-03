@@ -4,6 +4,7 @@ from config.ttm import *
 from config.timesfm import *
 from config.tcn import *
 from config.static import *
+from config.informer import *
 from config.lightts import *
 from config.data import *
 from config.narma import *

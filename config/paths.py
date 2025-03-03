@@ -17,6 +17,7 @@ TTM_MODEL_DIR = os.path.join(MODELS_DIR, "ttm")
 TTM_MODEL_ZEROSHOT_DIR = os.path.join(TTM_MODEL_DIR, "zeroshots")
 TTM_MODEL_FEWSHOT_DIR = os.path.join(TTM_MODEL_DIR, "fewshots")
 STATIC_MODEL_DIR = os.path.join(MODELS_DIR, "static")
+INFORMER_MODEL_DIR = os.path.join(MODELS_DIR, "informer")
 LIGHTTS_MODEL_DIR = os.path.join(MODELS_DIR, "lightts")
 
 # Result Dir (inference, analysis)
@@ -33,6 +34,7 @@ PREDICTIONS_TIMESFM_ZEROSHOT_DIR = os.path.join(PREDICTIONS_TIMESFM_DIR, "zerosh
 PREDICTIONS_TIMESFM_FEWSHOT_DIR = os.path.join(PREDICTIONS_TIMESFM_DIR, "fewshots")
 PREDICTIONS_TTM_DIR = os.path.join(PREDICTIONS_DIR, "ttm")
 PREDICTIONS_STATIC_DIR = os.path.join(PREDICTIONS_DIR, "static")
+PREDICTIONS_INFORMER_DIR = os.path.join(PREDICTIONS_DIR, "informer")
 PREDICTIONS_LIGHTTS_DIR = os.path.join(PREDICTIONS_DIR, "lightts")
 
 # Result Dir (analysis) each architecture

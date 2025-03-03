@@ -19,7 +19,7 @@ class PrepareData():
     self.end_index = 10000
   
 
-  def setup_dnpus(self, ratio: float = 1, normalized_type: str = 'min_max'):
+  def setup_dnpus(self, ratio: float = 0.05, normalized_type: str = 'min_max'):
     # Prepare data
     df = self._process.load_and_process_data(DNPUs_DATA, len(COLUMN_OBSERVABLE), len(COLUMN_TARGET))
 
@@ -143,7 +143,7 @@ class PrepareData():
     return dataloader, train_data, test_data
   
 
-  def dnpus_for_tcn(self, df: pd.DataFrame, sl: int, fl: int, batch_size: int, ratio: float):
+  def dnpus_for_tcn(self, df: pd.DataFrame, sl: int, fl: int, batch_size: int, train_size: float = 0.8, valid_size: float = 0.1):
     """
     Prepare the training, validation, and testing data loaders for DNPU task.
     
@@ -156,14 +156,14 @@ class PrepareData():
       train_loader, valid_loader, test_loader: DataLoaders for training, validation, and testing data
     """
     # Extract features and targets (assuming the DataFrame is already normalized)
-    df_train = df.head(int(ratio * len(df)))
-    df_test = df.iloc[int(ratio * len(df)) : int(ratio * len(df)) + min(len(df), self.end_index)]
+    df_train = df.head(int((train_size + valid_size) * len(df)))
+    df_test = df.iloc[int((train_size + valid_size) * len(df)) : int((train_size + valid_size) * len(df)) + min(len(df), self.end_index)]
 
     features = df_train[COLUMN_INPUT].values
     targets = df_train[COLUMN_TARGET].values
 
     # Split the data into training (80%) and validation (20%)
-    train_features, valid_features, train_targets, valid_targets = train_test_split(features, targets, test_size=0.2, shuffle=False)
+    train_features, valid_features, train_targets, valid_targets = train_test_split(features, targets, test_size=valid_size/train_size, shuffle=False)
     test_features, test_targets = df_test[COLUMN_INPUT].values, df_test[COLUMN_TARGET].values
 
     # Convert data to PyTorch tensors
@@ -187,8 +187,9 @@ class PrepareData():
     train_inputs, train_outputs = create_sequence_data(train_features_tensor, train_targets_tensor)
     valid_inputs, valid_outputs = create_sequence_data(valid_features_tensor, valid_targets_tensor)
     test_inputs, test_outputs = create_sequence_data(test_features_tensor, test_targets_tensor)
-    print(train_targets.shape)
-    print(valid_targets.shape)
+    print(f'Train Target Size: {train_targets.shape}')
+    print(f'Vaiid Target Size: {valid_targets.shape}')
+    print(f'Test Target Size: {test_targets.shape}')
 
     # Create DataLoader instances for batch processing
     train_dataset = torch.utils.data.TensorDataset(train_inputs, train_outputs)

@@ -5,7 +5,7 @@ from src.utils.plot import Plot
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Dataset
 from sklearn.model_selection import train_test_split
 
 
@@ -59,6 +59,61 @@ class PrepareData():
     print(f"Data lengths: train = {len(train_dataset)}, val = {len(valid_dataset)}, test = {len(test_dataset)}")
 
     return full_dataset, train_dataset, valid_dataset, test_dataset
+
+
+  def dnpus_for_original_ttm(self, df_normalized: pd.DataFrame, sl: int, fl: int, batch_size: int, train_size: float = 0.8, valid_size: float = 0.1):
+    """
+    Prepare the training, validation, and testing data loaders for DNPU task.
+    
+    Args:
+      df (pd.DataFrame): The DataFrame containing the dataset with columns input_0 to input_6 and output_0
+      fl (int): The number of steps to predict into the future
+      batch_size (int): The batch size for training and testing data
+    
+    Returns:
+      train_loader, valid_loader, test_loader: DataLoaders for training, validation, and testing data
+    """
+    # Extract features and targets (assuming the DataFrame is already normalized)
+    df_train = df_normalized.head(int((train_size + valid_size) * len(df_normalized)))
+    df_test = df_normalized.iloc[int((train_size + valid_size) * len(df_normalized)) : int((train_size + valid_size) * len(df_normalized)) + min(len(df_normalized), self.end_index)]
+
+    features = df_train[COLUMN_INPUT].values
+    targets = df_train[COLUMN_TARGET].values
+
+    # Split the data into training (80%) and validation (20%)
+    train_features, valid_features, train_targets, valid_targets = train_test_split(features, targets, test_size=valid_size/train_size, shuffle=False)
+    test_features, test_targets = df_test[COLUMN_INPUT].values, df_test[COLUMN_TARGET].values
+
+    # Convert data to PyTorch tensors
+    train_features_tensor = torch.tensor(train_features, dtype=torch.float32)
+    train_targets_tensor = torch.tensor(train_targets, dtype=torch.float32)
+    valid_features_tensor = torch.tensor(valid_features, dtype=torch.float32)
+    valid_targets_tensor = torch.tensor(valid_targets, dtype=torch.float32)
+    test_features_tensor = torch.tensor(test_features, dtype=torch.float32)
+    test_targets_tensor = torch.tensor(test_targets, dtype=torch.float32)
+
+    # Create input-output pairs for sequence prediction
+    def create_sequence_data(features, targets):
+      inputs, outputs = [], []
+      for i in range(sl, len(features) - fl):
+        inputs.append(features[i-sl : i])
+        outputs.append(targets[i :i+fl])
+        # outputs.append(targets[i-1 :i])
+      return torch.stack(inputs), torch.stack(outputs)
+
+    # Prepare the training, validation, and testing sequences
+    train_inputs, train_outputs = create_sequence_data(train_features_tensor, train_targets_tensor)
+    valid_inputs, valid_outputs = create_sequence_data(valid_features_tensor, valid_targets_tensor)
+    test_inputs, test_outputs = create_sequence_data(test_features_tensor, test_targets_tensor)
+    print(f'Train Target Size: {train_targets.shape}')
+    print(f'Vaiid Target Size: {valid_targets.shape}')
+    print(f'Test Target Size: {test_targets.shape}')
+
+    train_loader = OriginalTTMDataset(train_inputs, train_outputs)
+    valid_loader = OriginalTTMDataset(valid_inputs, valid_outputs)
+    test_loader = OriginalTTMDataset(test_inputs, test_outputs)
+    
+    return train_loader, valid_loader, test_loader
     
   
   def sample_for_timesfm(self, dataset: str, batch_size: int, fl: int, ratio: float = 1.0):
@@ -259,3 +314,22 @@ class PrepareData():
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, valid_loader, test_loader
+
+
+
+
+class OriginalTTMDataset(Dataset):
+  def __init__(self, inputs, outputs):
+    self.inputs = inputs
+    self.outputs = outputs
+
+
+  def __len__(self):
+    return len(self.inputs)
+
+
+  def __getitem__(self, idx):
+    return {
+      "past_values": self.inputs[idx],    # (sl, c)
+      "future_values": self.outputs[idx]  # (fl, c')
+    }

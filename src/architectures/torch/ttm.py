@@ -2,7 +2,7 @@ from config.config import *
 from src.architectures.base import BaseArchitecture
 import os
 import math
-from tsfm.tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
+from tsfm.tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction, TinyTimeMixerForPreTraining, TinyTimeMixerConfig
 from tsfm.tsfm_public.toolkit.callbacks import TrackingCallback
 from tsfm.tsfm_public.models.tinytimemixer.utils import count_parameters
 import torch
@@ -176,23 +176,23 @@ class TTM(BaseArchitecture):
       count_parameters(fewshot_model),
     )
 
-    # # fewshot_model のパラメータをモジュールごとに整理して表示
-    # from collections import defaultdict
+    # fewshot_model のパラメータをモジュールごとに整理して表示
+    from collections import defaultdict
 
-    # # モジュールごとのパラメータ数を集計
-    # param_counts = defaultdict(int)
-    # total_params = 0
+    # モジュールごとのパラメータ数を集計
+    param_counts = defaultdict(int)
+    total_params = 0
 
-    # for name, param in fewshot_model.named_parameters():
-    #   module_name = name.split('.')[0]  # 最上位のモジュール名を取得
-    #   param_counts[module_name] += param.numel()
-    #   total_params += param.numel()
+    for name, param in fewshot_model.named_parameters():
+      module_name = name.split('.')[0]  # 最上位のモジュール名を取得
+      param_counts[module_name] += param.numel()
+      total_params += param.numel()
 
-    # # 各モジュールごとのパラメータ数を表示
-    # print("Parameter distribution in fewshot_model:")
-    # for module, count in param_counts.items():
-    #   print(f"{module}: {count:,} parameters")
-    # print(f"Total parameters: {total_params:,}")
+    # 各モジュールごとのパラメータ数を表示
+    print("Parameter distribution in fewshot_model:")
+    for module, count in param_counts.items():
+      print(f"{module}: {count:,} parameters")
+    print(f"Total parameters: {total_params:,}")
 
     # Freeze the backbone of the model
     for param in fewshot_model.backbone.parameters():
@@ -264,14 +264,14 @@ class TTM(BaseArchitecture):
 
 
   def few_shot_load(self, ouput_dir: str, model_dir: str, per_device_eval_batch_size: int, model_name: str):
-    fewshot_model = TinyTimeMixerForPrediction.from_pretrained(os.path.join(model_dir, model_name))
+    model = TinyTimeMixerForPrediction.from_pretrained(os.path.join(model_dir, model_name))
 
-    fewshot_trainer = Trainer(
-      model=fewshot_model,
+    trainer = Trainer(
+      model=model,
       args=TrainingArguments(
         output_dir=ouput_dir,
         per_device_eval_batch_size=per_device_eval_batch_size,
       )
     )
 
-    return fewshot_trainer
+    return trainer

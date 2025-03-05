@@ -69,6 +69,9 @@ class TCNLightning(BaseArchitecture, L.LightningModule):
     # Initialize
     self.test_step_outputs = []
 
+    # Load Model
+    self.model.load_state_dict(torch.load(os.path.join(self.model_dir, f'{self.model_name}.pt')))
+
     trainer = L.Trainer(max_epochs=self.epoch, accelerator=self.backend, logger=False)
 
     # Test

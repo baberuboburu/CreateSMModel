@@ -401,24 +401,24 @@ class ForecastDFDataset(BaseConcatDFDataset):
             self.autoregressive_modeling = autoregressive_modeling
 
             # Added by Aoto
-            # x_cols = join_list_without_repeat(
-            #     observable_columns,
-            #     control_columns,
-            #     conditional_columns,
-            # )
-            # y_cols = join_list_without_repeat(
-            #     target_columns,
-            #     control_columns,
-            #     conditional_columns,
-            # )
-            # Order is important (target → observable → control → conditional)
             x_cols = join_list_without_repeat(
-                target_columns,
                 observable_columns,
                 control_columns,
                 conditional_columns,
             )
-            y_cols = copy.copy(x_cols)
+            y_cols = join_list_without_repeat(
+                target_columns,
+                control_columns,
+                conditional_columns,
+            )
+            # # Order is important (target → observable → control → conditional)
+            # x_cols = join_list_without_repeat(
+            #     target_columns,
+            #     observable_columns,
+            #     control_columns,
+            #     conditional_columns,
+            # )
+            # y_cols = copy.copy(x_cols)
 
             # check non-autoregressive case
             if len(target_columns) == len(x_cols) and not self.autoregressive_modeling:

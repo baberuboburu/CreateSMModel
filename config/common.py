@@ -10,5 +10,5 @@ This file is only used by these files.
 import torch
 
 # Common
-BACKEND = 'gpu' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+BACKEND = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 LOSS = 'mse'

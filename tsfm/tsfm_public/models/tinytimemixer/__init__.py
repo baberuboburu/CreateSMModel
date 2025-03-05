@@ -28,6 +28,7 @@ else:
         "TINYTIMEMIXER_PRETRAINED_MODEL_ARCHIVE_LIST",
         "TinyTimeMixerModel",
         "TinyTimeMixerForPrediction",
+        "TinyTimeMixerForPreTraining"
     ]
 
     _import_structure["utils_tinytimemixer"] = [
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
             TINYTIMEMIXER_PRETRAINED_MODEL_ARCHIVE_LIST,
             TinyTimeMixerForPrediction,
             TinyTimeMixerModel,
+            TinyTimeMixerForPreTraining
         )
         from .utils_tinytimemixer import (
             get_freq_mapping,

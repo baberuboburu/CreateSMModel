@@ -67,6 +67,35 @@ TINYTIMEMIXER_INPUTS_DOCSTRING = r"""
 """
 
 
+class TinyTimeMixerGatedAttention(nn.Module):
+    """
+    Module that applies gated attention to input data.
+
+    Args:
+        in_size (`int`): The input size.
+        out_size (`int`): The output size.
+    """
+
+    def __init__(self, in_size: int, out_size: int):
+        super().__init__()
+        self.attn_layer = nn.Linear(in_size, out_size)
+        self.attn_softmax = nn.Softmax(dim=-1)
+        self.in_size = in_size
+        self.out_size = out_size
+
+    def forward(self, inputs, decrease_dim: bool = False):
+        attn_weight = self.attn_softmax(self.attn_layer(inputs))
+        inputs = inputs * attn_weight
+
+        # Added by Aoto (Changed the define of "outputs")
+        if decrease_dim:
+            outputs = self.attn_layer(inputs)
+        else:
+            outputs = inputs
+
+        return outputs
+
+
 # class TinyTimeMixerGatedAttention(nn.Module):
 #     """
 #     Module that applies gated attention to input data.
@@ -84,34 +113,7 @@ TINYTIMEMIXER_INPUTS_DOCSTRING = r"""
 #     def forward(self, inputs, decrease_dim: bool = False):
 #         attn_weight = self.attn_softmax(self.attn_layer(inputs))
 #         inputs = inputs * attn_weight
-
-#         # Added by Aoto (Changed the define of "outputs")
-#         if decrease_dim:
-#             outputs = self.attn_layer(inputs)
-#         else:
-#             outputs = inputs
-
-#         return outputs
-
-
-class TinyTimeMixerGatedAttention(nn.Module):
-    """
-    Module that applies gated attention to input data.
-
-    Args:
-        in_size (`int`): The input size.
-        out_size (`int`): The output size.
-    """
-
-    def __init__(self, in_size: int, out_size: int):
-        super().__init__()
-        self.attn_layer = nn.Linear(in_size, out_size)
-        self.attn_softmax = nn.Softmax(dim=-1)
-
-    def forward(self, inputs, decrease_dim: bool = False):
-        attn_weight = self.attn_softmax(self.attn_layer(inputs))
-        inputs = inputs * attn_weight
-        return inputs
+#         return inputs
 
 
 
@@ -271,7 +273,8 @@ class TinyTimeMixerChannelFeatureMixerBlock(nn.Module):
                 config=config,
             )
             self.gating_block = TinyTimeMixerGatedAttention(
-                    in_size=config.num_input_channels, out_size=config.num_input_channels
+                    in_size=config.num_input_channels, 
+                    out_size=config.num_input_channels
                 )
         elif type_ == 'decoder':
             self.mlp = TinyTimeMixerMLP(
@@ -280,11 +283,9 @@ class TinyTimeMixerChannelFeatureMixerBlock(nn.Module):
                 config=config,
             )
             if config.gated_attn:
-                # self.gating_block = TinyTimeMixerGatedAttention(
-                #     in_size=config.num_input_channels, out_size=config.num_output_channels
-                # )
                 self.gating_block = TinyTimeMixerGatedAttention(
-                    in_size=config.num_input_channels, out_size=config.num_input_channels
+                    in_size=config.num_input_channels, 
+                    out_size=config.num_input_channels
                 )
 
 
@@ -296,7 +297,6 @@ class TinyTimeMixerChannelFeatureMixerBlock(nn.Module):
         Returns:
             `torch.Tensor` of the same shape as `inputs`
         """
-        inputs = self.norm(inputs)
 
         # Added by Aoto (Changed the define of "residual")
         if decrease_dim:
@@ -305,6 +305,8 @@ class TinyTimeMixerChannelFeatureMixerBlock(nn.Module):
         else:
             residual = inputs
         
+        inputs = self.norm(inputs)
+
         inputs = inputs.permute(0, 3, 2, 1)
 
         inputs = self.mlp(inputs)

@@ -1,6 +1,7 @@
 from config.paths import *
 from config.common import *
 from config.ttm import *
+from config.original_ttm import *
 from config.timesfm import *
 from config.tcn import *
 from config.static import *

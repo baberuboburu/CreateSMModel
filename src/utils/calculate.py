@@ -48,9 +48,13 @@ class Calculate():
         output = trainer.model(inputs)
         predictions = output.prediction_outputs  # Assuming the predictions are in prediction_outputs attribute
         
-        all_targets.append(amplification * targets.squeeze(0))
-        all_predictions.append(amplification * predictions.squeeze(0))
+        # all_targets.append(amplification * targets.squeeze(0))
+        # all_predictions.append(amplification * predictions.squeeze(0))
         # break
+
+        # Move to CPU and convert to NumPy before storing
+        all_targets.append((amplification * targets.squeeze(0)).cpu().numpy())
+        all_predictions.append((amplification * predictions.squeeze(0)).cpu().numpy())
   
     # all_targets = torch.cat(all_targets, dim=0).cpu().numpy()
     # all_predictions = torch.cat(all_predictions, dim=0).cpu().numpy()

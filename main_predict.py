@@ -1,19 +1,22 @@
-# from src.architectures.torch.ttm import TTM
+from src.architectures.torch.ttm import TTM
 # from src.architectures.torch.timesfm import TimesFM
-from src.architectures.configuration import TCNConfiguration
-from src.architectures.torch.tcn import TCN
-from src.architectures.lightning.tcn import TCNLightning
+# from src.architectures.configuration import TCNConfiguration
+# from src.architectures.torch.tcn import TCN
+# from src.architectures.lightning.tcn import TCNLightning
 # from src.architectures.torch.static import FineTuneStaticSM
 
 
 # TTM
-# ttm = TTM()
+ttm = TTM()
 
 # zeroshot_trainer = ttm.zeroshot(new=False)
 # ttm.DNPUs(zeroshot_trainer, 'zero')
 
 # fewshot_trainer = ttm.fewshot(new=False, model_name='DNPUs20250225_only_F_01%')
 # ttm.DNPUs(fewshot_trainer, 'few')
+
+pretrained_trainer = ttm.pretrained_model(new=False, model_name='DNPUs20250304_only_F_01%')
+ttm.DNPUs(pretrained_trainer, 'few')
 
 # TimesFM
 # timesfm = TimesFM()
@@ -26,13 +29,13 @@ from src.architectures.lightning.tcn import TCNLightning
 # timesfm.ettm1(fewshot_trainer, type_='few', ratio=0.05)
 
 # TCN
-tcn_config = TCNConfiguration()
-tcn_config.ratio = 0.01
-tcn_config.model_name = 'DNPUs_only_feature_1%_tmp2'
-tcn = TCN(tcn_config)
-tcn_lightning = TCNLightning(tcn_config)
+# tcn_config = TCNConfiguration()
+# tcn_config.ratio = 0.01
+# tcn_config.model_name = 'DNPUs_only_feature_1%_tmp2'
+# tcn = TCN(tcn_config)
+# tcn_lightning = TCNLightning(tcn_config)
 
-tcn.test_DNPUs()
+# tcn.test_DNPUs()
 # tcn_lightning.test_DNPUs()
 
 # Pretrained Static Model

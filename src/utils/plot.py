@@ -1,6 +1,9 @@
 import os
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from scipy.fftpack import fft, fftfreq
+from scipy.signal import stft
 from typing import List
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
@@ -9,7 +12,7 @@ from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 class Plot():
   def __init__(self):
-    pass
+    self.sampling_rate = 2000
 
 
   # Visualize the input and output series
@@ -215,3 +218,90 @@ class Plot():
       if all(abs(losses[i] - losses[i + 1]) <= d for i in range(j, len(losses) - 1)):
         return j
     return len(losses) - 1
+
+
+  def plot_fft(self, true_values, plot_dir, start=0, end=10000, prefix: str = ''):
+    """
+    Plot the FFT using target values within a specified range.
+    
+    Args:
+    true_values (np.array): Array of true values.
+    plot_dir (str): Directory to save the plot.
+    start (int): The starting index for plotting. Default is 0.
+    end (int): The ending index for plotting. Default is 20.
+    """
+    # Check if true_values is a valid array
+    if not isinstance(true_values, np.ndarray):
+      raise TypeError("true_values must be a NumPy array.")
+    
+    # Ensure valid range
+    num_values = len(true_values)
+    if num_values == 0:
+      raise ValueError("true_values is empty.")
+
+    if start < 0:
+      start = 0
+    if end > num_values:
+      end = num_values
+    if start >= end:
+      raise ValueError(f"Invalid range for FFT analysis: start={start}, end={end}, length={num_values}")
+
+    # Extract the required range
+    signal_segment = true_values[start:end] - np.mean(true_values[start:end])
+
+    # Compute FFT
+    N = len(signal_segment)
+    fft_values = fft(signal_segment)
+
+    freqs = fftfreq(N, d=1/self.sampling_rate)
+
+    # Plot FFT magnitude spectrum
+    plt.figure(figsize=(10, 6))
+    plt.plot(freqs[:N//40], np.abs(fft_values[:N//40]))
+    plt.title("FFT Magnitude Spectrum")
+    plt.xlabel("Frequency")
+    plt.ylabel("Magnitude")
+    plt.grid()
+
+    # Ensure plot directory exists
+    os.makedirs(plot_dir, exist_ok=True)
+    plot_path = os.path.join(plot_dir, f"fft_{prefix}.png")
+    plt.savefig(plot_path)
+    plt.close()
+
+    print(f"FFT plot saved at: {plot_path}")
+
+
+  def plot_stft(self, true_values, plot_dir, start=0, end=10000, prefix: str = ''):
+    """
+    Plot the STFT using target values within a specified range.
+    
+    Args:
+    true_values (np.array): Array of true values.
+    plot_dir (str): Directory to save the plot.
+    start (int): The starting index for plotting. Default is 0.
+    end (int): The ending index for plotting. Default is 20.
+    """
+    # Ensure valid range
+    max_index = max(end, len(true_values))
+    true_values = true_values[:max_index]
+    signal_segment = true_values[start:end] - np.mean(true_values[start:end])
+    
+    # Compute STFT
+    f, t, Zxx = stft(signal_segment, fs=self.sampling_rate, nperseg=128)
+    
+    # Plot STFT magnitude spectrum
+    plt.figure(figsize=(10, 6))
+    plt.pcolormesh(t, f, np.abs(Zxx), shading='gouraud')
+    plt.title("STFT Magnitude Spectrum")
+    plt.xlabel("Time")
+    plt.ylabel("Frequency")
+    plt.colorbar(label="Magnitude")
+    
+    # Ensure plot directory exists
+    os.makedirs(plot_dir, exist_ok=True)
+    plot_path = os.path.join(plot_dir, f"stft_{prefix}.png")
+    plt.savefig(plot_path)
+    plt.close()
+    
+    print(f"STFT plot saved at: {plot_path}")

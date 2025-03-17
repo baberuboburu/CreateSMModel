@@ -2,7 +2,7 @@ from config.config import *
 from src.architectures.base import BaseArchitecture
 import os
 import math
-from tsfm.tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction, TinyTimeMixerForPreTraining, TinyTimeMixerConfig
+from tsfm.tsfm_public.models.tinytimemixer import TinyTimeMixerForPrediction
 from tsfm.tsfm_public.toolkit.callbacks import TrackingCallback
 from tsfm.tsfm_public.models.tinytimemixer.utils import count_parameters
 import torch

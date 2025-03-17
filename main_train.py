@@ -1,18 +1,20 @@
 # from src.architectures.torch.ttm import TTM
-from src.architectures.torch.original_ttm import OriginalTTM
+# from src.architectures.torch.ttm_dnpus import TTMDNPUs
 # from src.architectures.torch.timesfm import TimesFM
-# from src.architectures.configuration import TCNConfiguration
+from src.architectures.configuration import TCNConfiguration, TransformerConfiguration, OnlyDecoderConfiguration
 # from src.architectures.torch.tcn import TCN
+from src.architectures.lightning.transformer import TransformerLightning
+from src.architectures.lightning.only_decoder import OnlyDecoderTransformerLightning
 # from src.architectures.lightning.tcn import TCNLightning
 # from src.architectures.torch.static import FineTuneStaticSM
 
 
 # TTM
 # ttm = TTM()
-original_ttm = OriginalTTM()
+# ttm_dnpus = TTMDNPUs()
 # zeroshot_trainer = ttm.zeroshot(new=True)
 # fewshot_trainer = ttm.fewshot(new=True, ratio=0.001, model_name='DNPUs20250225_only_F_01%')
-pretrained_trainer = original_ttm.pretrained_model(new=True, ratio=0.001, model_name='DNPUs20250305_only_F_01%')
+# pretrained_trainer = ttm_dnpus.pretrained_model(new=True, ratio=0.001, model_name='DNPUs20250305_only_F_01%')
 
 # TimesFM Few Shot Variant
 # timesfm = TimesFM()
@@ -32,6 +34,15 @@ pretrained_trainer = original_ttm.pretrained_model(new=True, ratio=0.001, model_
 # static = FineTuneStaticSM()
 # static.train_DNPUs(ratio=0.3)
 
-# Light TS
+# # Transformer
+# transformer_config = TransformerConfiguration()
+# transformer_config.ratio = 0.05
+# transformer_config.model_name = f'20250317_{transformer_config.ratio * 100}%'
+# transformer_lightning = TransformerLightning(transformer_config)
+# transformer_lightning.train_DNPUs()
 
-# Informer
+# Only Decoder Transformer
+only_decoder_config = OnlyDecoderConfiguration()
+only_decoder = OnlyDecoderTransformerLightning(only_decoder_config)
+only_decoder_config.ratio = 0.05
+only_decoder.train_DNPUs()

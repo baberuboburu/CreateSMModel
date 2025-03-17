@@ -1,7 +1,10 @@
 data/IO.dat
 data/IO.csv
+output/predictions/ttm_dnpus/logs/**
 models/tcn/**
 models/timesfm/**
 models/ttm/**
 models/static/**
+checkpoints/**
+**/*.pt
 **/__pycache__/

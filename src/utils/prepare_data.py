@@ -61,7 +61,7 @@ class PrepareData():
     return full_dataset, train_dataset, valid_dataset, test_dataset
 
 
-  def dnpus_for_original_ttm(self, df_normalized: pd.DataFrame, sl: int, fl: int, batch_size: int, train_size: float = 0.8, valid_size: float = 0.1):
+  def dnpus_for_ttm_dnpus(self, df_normalized: pd.DataFrame, sl: int, fl: int, batch_size: int, train_size: float = 0.8, valid_size: float = 0.1):
     """
     Prepare the training, validation, and testing data loaders for DNPU task.
     
@@ -109,9 +109,9 @@ class PrepareData():
     print(f'Vaiid Target Size: {valid_targets.shape}')
     print(f'Test Target Size: {test_targets.shape}')
 
-    train_loader = OriginalTTMDataset(train_inputs, train_outputs)
-    valid_loader = OriginalTTMDataset(valid_inputs, valid_outputs)
-    test_loader = OriginalTTMDataset(test_inputs, test_outputs)
+    train_loader = TTMDNPUsDataset(train_inputs, train_outputs)
+    valid_loader = TTMDNPUsDataset(valid_inputs, valid_outputs)
+    test_loader = TTMDNPUsDataset(test_inputs, test_outputs)
     
     return train_loader, valid_loader, test_loader
     
@@ -318,7 +318,7 @@ class PrepareData():
 
 
 
-class OriginalTTMDataset(Dataset):
+class TTMDNPUsDataset(Dataset):
   def __init__(self, inputs, outputs):
     self.inputs = inputs
     self.outputs = outputs
@@ -330,6 +330,6 @@ class OriginalTTMDataset(Dataset):
 
   def __getitem__(self, idx):
     return {
-      "past_values": self.inputs[idx],    # (sl, c)
-      "future_values": self.outputs[idx]  # (fl, c')
+      "past_feature_values": self.inputs[idx],   # (sl, c)
+      "future_target_values": self.outputs[idx]  # (fl, c')
     }

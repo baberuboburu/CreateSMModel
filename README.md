@@ -6,49 +6,65 @@ This project focuses on building deep learning models using multiple architectur
 ## Directory Structure
 ```
 project_root/
-│── main_train.py        # Entry point for training models
-│── main_predict.py      # Entry point for making predictions
+│── main_train.py             # Entry point for training models
+│── main_predict.py           # Entry point for making predictions
+│── main_girdsearch.py        # Uncompleted File.
 │
-├── config/              # Configuration files
-│   ├── config.py        # This file has all config vaiate, and then only this file is imported
-│   ├── paths.py         # Centralized file path management, You can select columns for input
-│   ├── common.py        # Common settings
-│   ├── tcn.py           # TCN-specific settings
-│   ├── timesfm.py       # TimesFM-specific settings
-│   ├── ttm.py           # TTM-specific settings
-│   ├── armodel.py       # ARModel Task settings
-│   ├── narma.py         # NARMA Task settings
+├── config/                   # Configuration files
+│   ├── config.py             # This file has all config vaiate, and then only this file is imported
+│   ├── paths.py              # Centralized file path management, You can select columns for input
+│   ├── common.py             # Common settings
+│   ├── tcn.py                # TCN-specific settings
+│   ├── timesfm.py            # TimesFM-specific settings
+│   ├── ttm.py                # TTM-specific settings
+│   ├── ttm_dnpus.py          # TTM DNPUs-specific settings
+│   ├── transformer.py        # Transformer-specific settings
+│   ├── decoder_only.py       # Decoder Only Trasnformer-specific settings
+│   ├── ttm_dnpus.py          # TTM DNPUs-specific settings
+│   ├── armodel.py            # ARModel Task settings
+│   ├── narma.py              # NARMA Task settings
 │
-├── data/                # Dataset storage
+├── data/                     # Dataset storage
 │   ├── ETTh1.csv
 │   ├── ETTh2.csv
-│   ├── IO.csv           # This file is not uploaded to github.
+│   ├── IO.csv                # This file is not uploaded to github.
 │
-├── models/              # Trained model storage
+├── models/                   # Trained model storage
 │   ├── tcn/
 │   ├── timesfm/
 │   ├── ttm/
 │   │   ├── zeroshots/
 │   │   ├── fewshots/
 │
-├── outputs/             # Prediction & analysis results
-│   ├── predictions/     # Model-generated outputs (.png)
-│   │   ├── tcn/
-│   │   ├── timesfm/
-│   │   ├── ttm/
+├── outputs/                  # Prediction & analysis results
+│   ├── predictions/          # Model-generated outputs (.png)
+│   │   ├── tcn/              # TCN model
+│   │   ├── timesfm/          # TiemsFM model (Using a pre-trained model)
+│   │   ├── ttm/              # TTM model
+│   │   ├── ttm_dnpus/        # TTM model applyed to DNPUs dataset
+│   │   ├── transformer/      # Normal Transformer
+│   │   ├── only_decoder/     # Normal Transformer with only decoder
+│   │   ├── static/           # Static DNPUs model
 │   │
-│   ├── analysis/        # Dataset analysis results (.png)
+│   ├── analysis/             # Dataset analysis results (.png)
 │   │   ├── ETTh1/
 │   │   ├── IO/
 │
-├── src/                 # Core project logic
-│   ├── architectures/   # Model architectures
-│   │   ├── base.py      # Common model functions
-│   │   ├── tcn.py       # TCN model
-│   │   ├── timesfm.py   # TimesFM model
-│   │   ├── ttm.py       # TTM model
+├── src/                      # Core project logic
+│   ├── architectures/        # Model architectures
+│   │   ├── base.py           # Common model functions
+│   │   ├── torch/            # written by normal pytorch
+│   │   │   ├── tcn.py        # TCN model
+│   │   │   ├── timesfm.py    # TimesFM model (Using a pre-trained model)
+│   │   │   ├── ttm.py        # TTM model
+│   │   │   ├── ttm_dnpus.py  # TTM model applyed to DNPUs dataset
+│   │   │   ├── static        # Static DNPUs model
+│   │   ├── lightning/        # written by lightning framework
+│   │   │   ├── tcn.py        # TCN model
+│   │   │   ├── transformer   # Normal Transformer
+│   │   │   ├── only_decoder  # Normal Transformer with only decoder.
 │   │
-│   ├── utils/           # Utility functions
+│   ├── utils/                # Utility functions
 │   │   ├── early_stop.py
 │   │   ├── normalize.py
 │   │   ├── plot.py
@@ -56,17 +72,18 @@ project_root/
 │   │   ├── calculate.py
 │   │   ├── prepare_data.py
 │   │
-│   ├── benchmark/       # Baseline models for comparison
+│   ├── benchmark/            # Baseline models for comparison
 │   │   ├── ARmodel.py
 │   │   ├── narma.py
 │   │   ├── dnpus.py
 │   
-├── timesfm/             # TimesFM library
-├── tsfm/                # TTM library
+├── timesfm/                  # TimesFM library
+├── tsfm/                     # TTM library
+├── TTMDNPUs/                 # TTM library using only features for training then predicting targets.
 │
 └── .gitignore
 │
-└── README.md            # Project documentation
+└── README.md                 # Project documentation
 ```
 
 ## How To Use

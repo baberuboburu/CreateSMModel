@@ -16,7 +16,14 @@ class TransformerLightning(BaseArchitecture, L.LightningModule):
     # Setup architecture
     BaseArchitecture.__init__(self)
     L.LightningModule.__init__(self)
-    self.model = TimeSeriesTransformer(config.num_inputs, config.d_model, config.num_heads, config.num_layers, config.dropout)
+    self.model = TimeSeriesTransformer(config)
+
+    # At fine tuning, load base model.
+    if config.fine_tune:
+      config.model_dir
+      model_path = os.path.join(config.model_dir, f'{config.base_model_name}.pt')
+      self.model.load_state_dict(torch.load(model_path))
+
     self.model.to(config.backend)
     self.loss_fn = nn.MSELoss()
 
@@ -54,7 +61,7 @@ class TransformerLightning(BaseArchitecture, L.LightningModule):
     start_time = time.time()
     trainer.fit(self, self.data_module)
     end_time = time.time()
-    print(f'Training Time: {end_time - start_time}:4f')
+    print(f'Training Time: {(end_time - start_time):4f}')
 
     # Save Model
     torch.save(self.model.state_dict(), os.path.join(self.model_dir, f'{self.model_name}.pt'))
@@ -81,6 +88,9 @@ class TransformerLightning(BaseArchitecture, L.LightningModule):
 
     true_values = np.array(true_values)
     prediction_values = np.array(prediction_values)
+
+    self._plot.plot_fft(prediction_values, self.predictions_dir, prefix='predict')
+    self._plot.plot_fft(true_values, self.predictions_dir, prefix='true')
 
     self._plot.plot_predictions(true_values, prediction_values, self.predictions_dir, start=self.start_index, end=self.end_index)
 
@@ -159,13 +169,29 @@ class TransformerDataModule(BaseArchitecture, L.LightningDataModule):
     self.fl = config.fl
     self.train_size = config.train_size
     self.valid_size = config.valid_size
+    self.num_inputs = config.num_inputs
+    self._has_setup = False
     
 
   def setup(self, stage=None):
+    if self._has_setup == True:
+      return
+
     df = self._prepare_data.setup_dnpus(ratio=self.ratio)
-    self.train_loader, self.val_loader, self.test_loader = self._prepare_data.dnpus_for_tcn(
-      df, self.sl, self.fl, self.batch_size, train_size=self.train_size, valid_size=self.valid_size
-    )
+    if self.num_inputs == 7:
+      self.train_loader, self.val_loader, self.test_loader = self._prepare_data.dnpus_for_onlyF(
+        df, self.sl, self.fl, self.batch_size, train_size=self.train_size, valid_size=self.valid_size
+      )
+    # if self.num_inputs == 7:
+    #   self.test_loader, self.train_loader, self.val_loader = self._prepare_data.dnpus_for_onlyF(
+    #     df, self.sl, self.fl, self.batch_size, train_size=self.train_size, valid_size=self.valid_size
+    #   )
+    elif self.num_inputs == 8:
+      self.train_loader, self.val_loader, self.test_loader = self._prepare_data.dnpus_for_FT(
+        df, self.sl, self.fl, self.batch_size, train_size=self.train_size, valid_size=self.valid_size
+      )
+
+    self._has_setup = True
 
 
   def train_dataloader(self):
@@ -182,29 +208,74 @@ class TransformerDataModule(BaseArchitecture, L.LightningDataModule):
 
 
 
-# Transformer Model for Time-Series Forecasting
+# # Transformer Model for Time-Series Forecasting
+# class TimeSeriesTransformer(nn.Module):
+#   def __init__(self, config: TransformerConfiguration):
+#     super().__init__()
+#     self.num_inputs = config.num_inputs
+#     self.num_outputs = config.num_outputs
+#     self.d_model = config.d_model
+#     self.num_heads = config.num_heads
+#     self.num_layers = config.num_layers
+#     self.dropout = config.dropout
+    
+#     self.input_embedding = nn.Linear(self.num_inputs, self.d_model)
+#     self.positional_encoding = nn.Parameter(torch.zeros(1, 1000, self.d_model))
+    
+#     self.encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model, nhead=self.num_heads, dropout=self.dropout)
+#     self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=self.num_layers)
+    
+#     self.output_layer = nn.Linear(self.d_model, 1)
+
+
+#   def forward(self, src):
+#     src = self.input_embedding(src) + self.positional_encoding[:, :src.size(1), :]
+    
+#     memory = self.transformer_encoder(src)
+#     output = self.output_layer(memory[:, -1, :])
+    
+#     return output
+
+
+
 class TimeSeriesTransformer(nn.Module):
-  def __init__(self, num_inputs: int, d_model: int, num_heads: int, num_layers: int, dropout: float):
+  def __init__(self, config: TransformerConfiguration):
     super().__init__()
 
-    self.d_model = d_model
-    
-    self.input_embedding = nn.Linear(num_inputs, d_model)
-    self.positional_encoding = nn.Parameter(torch.zeros(1, 1000, d_model))
-    
-    self.encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_heads, dropout=dropout)
-    self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
-    # self.decoder_layer = nn.TransformerDecoderLayer(d_model=d_model, nhead=num_heads, dropout=dropout)
-    # self.transformer_decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=num_layers)
-    
-    self.output_layer = nn.Linear(d_model, 1)
+    self.fine_tune = config.fine_tune
+    self.num_inputs = config.num_inputs
+    self.num_outputs = config.num_outputs
+    self.d_model = config.d_model
+    self.num_heads = config.num_heads
+    self.num_layers = config.num_layers
+    self.num_tunable_layers = config.num_tunable_layers
+    self.dropout = config.dropout
+
+    self.input_embedding = nn.Linear(self.num_inputs, self.d_model)
+    self.positional_encoding = nn.Parameter(torch.zeros(1, 1000, self.d_model))
+
+    # Encoder
+    self.encoder_layers = nn.ModuleList([
+      nn.TransformerEncoderLayer(d_model=self.d_model, nhead=self.num_heads, dropout=self.dropout)
+      for _ in range(self.num_layers)
+    ])
+
+    self.output_layer = nn.Linear(self.d_model, 1)
+
+    # At fine tuning, only the last N layers are tunable. (N=self.num_tunable_layers)
+    if self.fine_tune:
+      for i, layer in enumerate(reversed(self.encoder_layers)):
+        requires_grad = i < self.num_tunable_layers
+        for param in layer.parameters():
+          param.requires_grad = requires_grad
 
 
   def forward(self, src):
     src = self.input_embedding(src) + self.positional_encoding[:, :src.size(1), :]
-    # tgt = torch.zeros(src.shape[0], src.shape[1], self.d_model, device=src.device)
     
-    memory = self.transformer_encoder(src)
-    # output = self.transformer_decoder(tgt, memory)
-    output = self.output_layer(memory[:, -1, :])
+    output = src
+    for layer in self.encoder_layers:
+      output = layer(output)
+
+    output = self.output_layer(output[:, -1, :])
     return output

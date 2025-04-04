@@ -5,6 +5,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
 import lightning as L
@@ -238,6 +239,53 @@ class TransformerDataModule(BaseArchitecture, L.LightningDataModule):
 
 
 
+# class TimeSeriesTransformer(nn.Module):
+#   def __init__(self, config: TransformerConfiguration):
+#     super().__init__()
+
+#     self.fine_tune = config.fine_tune
+#     self.num_inputs = config.num_inputs
+#     self.num_outputs = config.num_outputs
+#     self.d_model = config.d_model
+#     self.num_heads = config.num_heads
+#     self.num_layers = config.num_layers
+#     self.num_tunable_layers = config.num_tunable_layers
+#     self.dropout = config.dropout
+
+#     self.input_embedding = nn.Linear(self.num_inputs, self.d_model)
+#     self.positional_encoding = nn.Parameter(torch.zeros(1, 1000, self.d_model))
+
+#     # Encoder
+#     self.encoder_layers = nn.ModuleList([
+#       nn.TransformerEncoderLayer(d_model=self.d_model, nhead=self.num_heads, dropout=self.dropout)
+#       for _ in range(self.num_layers)
+#     ])
+
+#     self.output_layer = nn.Linear(self.d_model, 1)
+
+#     # At fine tuning, only the last N layers are tunable. (N=self.num_tunable_layers)
+#     if self.fine_tune:
+#       for i, layer in enumerate(reversed(self.encoder_layers)):
+#         requires_grad = i < self.num_tunable_layers
+#         for param in layer.parameters():
+#           param.requires_grad = requires_grad
+
+
+#   def forward(self, src):
+#     src = self.input_embedding(src) + self.positional_encoding[:, :src.size(1), :]
+    
+#     output = src
+#     for layer in self.encoder_layers:
+#       output = layer(output)
+
+#     output = self.output_layer(output[:, -1, :])
+#     return output
+
+
+
+
+
+
 class TimeSeriesTransformer(nn.Module):
   def __init__(self, config: TransformerConfiguration):
     super().__init__()
@@ -256,23 +304,48 @@ class TimeSeriesTransformer(nn.Module):
 
     # Encoder
     self.encoder_layers = nn.ModuleList([
-      nn.TransformerEncoderLayer(d_model=self.d_model, nhead=self.num_heads, dropout=self.dropout)
+      nn.TransformerEncoderLayer(d_model=self.d_model, nhead=self.num_heads, dropout=self.dropout, batch_first=True)
       for _ in range(self.num_layers)
     ])
 
     self.output_layer = nn.Linear(self.d_model, 1)
 
-    # At fine tuning, only the last N layers are tunable. (N=self.num_tunable_layers)
     if self.fine_tune:
       for i, layer in enumerate(reversed(self.encoder_layers)):
         requires_grad = i < self.num_tunable_layers
         for param in layer.parameters():
           param.requires_grad = requires_grad
 
+    # T-Fixup Initialization
+    self._init_tfixup()
+
+
+  def _init_tfixup(self):
+    N = self.num_layers
+    encoder_scale = 0.67 * (N ** -0.25)
+
+    # Initialize input embedding (N(0, d^{-1/2}))
+    init.normal_(self.input_embedding.weight, mean=0.0, std=self.d_model ** -0.5)
+    init.zeros_(self.input_embedding.bias)
+
+    # Initialize output embedding (Xavier + Scaling)
+    init.xavier_normal_(self.output_layer.weight)
+    self.output_layer.weight.data.mul_(encoder_scale)
+    init.zeros_(self.output_layer.bias)
+
+    # Apply to Linear in TransformerEncoderLayer
+    for layer in self.encoder_layers:
+      for sub_module in layer.modules():
+        if isinstance(sub_module, nn.Linear):
+          init.xavier_normal_(sub_module.weight)
+          sub_module.weight.data.mul_(encoder_scale)
+          if sub_module.bias is not None:
+            init.zeros_(sub_module.bias)
+
 
   def forward(self, src):
     src = self.input_embedding(src) + self.positional_encoding[:, :src.size(1), :]
-    
+
     output = src
     for layer in self.encoder_layers:
       output = layer(output)
